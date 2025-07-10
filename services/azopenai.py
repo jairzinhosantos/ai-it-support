@@ -98,7 +98,7 @@ class AzureOpenAIClient:
             return json.loads(response_content)
         except json.JSONDecodeError:
             return response_content  # Return the plain text if it's not JSON
-    
+
     def openai_response(self, client, model, messages, tools = None, tool_choice = None, functions = None, function_call = None):
         """Gets a response from Azure OpenAI with multiple response format options."""
         try:
@@ -171,6 +171,120 @@ class AzureOpenAIClient:
         except Exception as e:
             logger.error(f"Error getting response from Azure OpenAI: {e}")
             raise
+
+    def run_stream(self, model, system_prompt, message, messages_history=None, tools=None, tool_choice=None, functions=None, function_call=None):
+        """Executes the OpenAI chat completion process with streaming."""
+        try:
+            env_vars = self.load_env_var()
+            client = self.create_openai_client(env_vars)
+
+            messages = [{"role": "system", "content": f"'''{system_prompt}'''"}]
+            if messages_history:
+                messages.extend(messages_history)
+            if message:
+                messages.extend(message)
+
+            logger.info("Starting streaming OpenAI process")
+            logger.info(f"Total messages: {len(messages)}")
+            
+            # Direct streaming implementation
+            completion_params = {
+                "model": model,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "max_tokens": self.max_tokens,
+                "seed": self.seed,
+                "messages": messages,
+                "stream": True
+            }
+
+            logger.info("Creating Azure OpenAI stream...")
+            
+            stream = client.chat.completions.create(**completion_params)
+            logger.info("Stream created successfully")
+            
+            full_content = ""
+            input_tokens = 0
+            output_tokens = 0
+            chunk_count = 0
+            
+            logger.info("Starting to process stream...")
+            
+            for chunk in stream:
+                chunk_count += 1
+                logger.info(f"Processing chunk #{chunk_count}")
+                
+                if chunk.choices:
+                    choice = chunk.choices[0]
+                    
+                    if choice.delta and choice.delta.content:
+                        content = choice.delta.content
+                        full_content += content
+                        logger.info(f"Got content: '{content}' (len: {len(content)})")
+                        
+                        # DON'T yield individual chunks here - collect all content first
+                    
+                    if choice.finish_reason:
+                        logger.info(f"Finish reason: {choice.finish_reason}")
+                
+                # Check for usage info
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    input_tokens = chunk.usage.prompt_tokens
+                    output_tokens = chunk.usage.completion_tokens
+            
+            logger.info(f"Stream completed. Chunks: {chunk_count}, Content length: {len(full_content)}")
+            
+            # Process content like the regular method and then stream the answer
+            if full_content:
+                # Parse the content like the regular method does
+                logger.info("Processing full content with same logic as regular method")
+                json_data = self.parse_content(full_content)
+                response_data = json_data if json_data else full_content
+                
+                logger.info(f"Parsed response data: {response_data}")
+                
+                # Extract the answer field like the regular method does
+                if isinstance(response_data, dict) and "answer" in response_data:
+                    answer_text = response_data["answer"]
+                    logger.info(f"Extracted answer from dict: {answer_text}")
+                else:
+                    answer_text = str(response_data)
+                    logger.info(f"Using response_data as answer: {answer_text}")
+                
+                # Now stream the answer character by character
+                logger.info("Starting character-by-character streaming of answer")
+                for i, char in enumerate(answer_text):
+                    yield {
+                        "type": "content",
+                        "content": char,
+                        "full_content": answer_text[:i+1]
+                    }
+                
+                # Final completion with all data
+                yield {
+                    "type": "complete",
+                    "content": full_content,
+                    "answer": answer_text,  # Add the extracted answer
+                    "response_data": response_data,  # Add the parsed response
+                    "model": model,
+                    "input_tokens": input_tokens if input_tokens > 0 else len(str(messages)) // 4,
+                    "output_tokens": output_tokens if output_tokens > 0 else len(full_content) // 4
+                }
+            else:
+                logger.error("No content received from streaming")
+                yield {
+                    "type": "error",
+                    "content": "No content received from Azure OpenAI"
+                }
+        
+        except Exception as e:
+            logger.error(f"Error in streaming: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            yield {
+                "type": "error",
+                "content": str(e)
+            }
     
     def run(self, model, system_prompt, message, messages_history = None, tools = None, tool_choice = None, functions = None, function_call = None):
         """Executes the OpenAI chat completion process."""

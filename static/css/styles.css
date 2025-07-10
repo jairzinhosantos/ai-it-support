@@ -543,3 +543,57 @@ body {
     font-weight: 500;
 }
 
+/* Streaming functionality styles - keeping original colors */
+
+/* Streaming message cursor */
+.streaming-message .cursor {
+    animation: blink 1s infinite;
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Enhanced loading dots for streaming */
+.loading-dots {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-start;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    animation: loading-dots 1.4s infinite ease-in-out;
+    display: inline-block;
+}
+
+.loading-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: 0.16s;
+}
+
+.loading-dots span:nth-child(3) {
+    animation-delay: 0.32s;
+}
+
+@keyframes loading-dots {
+    0%, 80%, 100% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+

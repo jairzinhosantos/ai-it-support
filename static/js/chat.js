@@ -13,6 +13,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let audioChunks = [];
     let isRecording = false;
 
+    // Streaming variables
+    let currentStreamingMessage = null;
+    let isStreaming = false;
+    let streamingBuffer = [];
+    let isShowingLoadingDots = true;
+    let bufferTimeout = null;
+
     // Make sessionId editable
     let sessionId = generateSessionId();
     
@@ -68,71 +75,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show user message
             addMessage(message, false);
 
-            // Show loading indicator
-            const loadingIndicator = addLoadingIndicator();
+            // Start streaming response
+            await sendStreamingMessage(sessionId, message);
 
-            // Send message to backend
-            const response = await sendMessage(sessionId, message);
-            
-            // Remove loading indicator
-            loadingIndicator.remove();
-
-            // Process backend response
-            if (response) {
-                console.log('Backend response:', response); // For debugging
-                let responseText = '';
-                let options = [];
-                let ticket = null;
-                
-                // Nueva lógica para manejar la respuesta estructurada
-                if (response.type && response.message) {
-                    responseText = response.message;
-                    
-                    // Si hay opciones, crear botones
-                    if (response.options && response.options.length > 0) {
-                        options = response.options;
-                    }
-                    
-                    // Si hay ticket, mostrar información
-                    if (response.ticket) {
-                        ticket = response.ticket;
-                    }
-                    
-                    // Agregar el mensaje principal
-                    addMessage(responseText, true);
-                    
-                    // Si hay opciones, agregar botones
-                    if (options.length > 0) {
-                        addOptions(options);
-                    }
-                    
-                    // Si hay ticket, mostrar información
-                    if (ticket) {
-                        addTicketInfo(ticket);
-                    }
-                    
-                } else {
-                    // Verificar la estructura específica de la respuesta (compatibilidad con versión anterior)
-                    if (response.response && response.response.answer) {
-                        responseText = response.response.answer;
-                    } else if (response.response) {
-                        responseText = response.response;
-                    } else if (response.answer) {
-                        responseText = response.answer;
-                    } else if (typeof response === 'string') {
-                        responseText = response;
-                    } else {
-                        console.log('Unrecognized response structure:', response);
-                        throw new Error('Unrecognized response format');
-                    }
-
-                    if (responseText) {
-                        addMessage(responseText, true);
-                        // Ensure scroll after the response
-                        scrollToBottom();
-                    }
-                }
-            }
         } catch (error) {
             console.error('Error:', error);
             addMessage("Sorry, an error occurred. Please try again.", true);
@@ -144,6 +89,276 @@ document.addEventListener('DOMContentLoaded', function() {
             scrollToBottom();
         }
     });
+
+    // ===== STREAMING FUNCTIONS =====
+
+    async function sendStreamingMessage(sessionId, message) {
+        return new Promise((resolve, reject) => {
+            try {
+                if (isStreaming) {
+                    console.log('Already streaming, skipping request');
+                    resolve();
+                    return;
+                }
+
+                isStreaming = true;
+
+                // Create streaming message element
+                currentStreamingMessage = createStreamingMessageElement();
+                
+                // Send the message via POST to start streaming
+                fetch('/chat/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sessionID: sessionId,
+                        query: message
+                    })
+                }).then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    // Handle the streaming response
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    
+                    function readStream() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                finishStreamingMessage();
+                                resolve();
+                                return;
+                            }
+                            
+                            const chunk = decoder.decode(value, { stream: true });
+                            const lines = chunk.split('\n');
+                            
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        const data = JSON.parse(line.substring(6));
+                                        
+                                        if (data.type === 'content') {
+                                            handleStreamingData(data);
+                                        } else if (data.type === 'options') {
+                                            // Wait for streaming to finish, then add options
+                                            setTimeout(() => {
+                                                finishStreamingMessage();
+                                                addOptions(data.options);
+                                            }, 100);
+                                        } else if (data.type === 'ticket') {
+                                            // Wait for streaming to finish, then add ticket
+                                            setTimeout(() => {
+                                                finishStreamingMessage();
+                                                addTicketInfo(data.ticket);
+                                            }, 100);
+                                        } else if (data.type === 'complete') {
+                                            // Streaming is complete
+                                            setTimeout(() => {
+                                                finishStreamingMessage();
+                                            }, 100);
+                                        } else if (data.type === 'error') {
+                                            handleStreamingData(data);
+                                        }
+                                        
+                                    } catch (e) {
+                                        console.error('Error parsing streaming data:', e);
+                                    }
+                                }
+                            }
+                            
+                            readStream();
+                        }).catch(error => {
+                            console.error('Error reading stream:', error);
+                            finishStreamingMessage();
+                            reject(error);
+                        });
+                    }
+                    
+                    readStream();
+                    
+                }).catch(error => {
+                    console.error('Error starting stream:', error);
+                    finishStreamingMessage();
+                    reject(error);
+                });
+
+            } catch (error) {
+                console.error('Error in sendStreamingMessage:', error);
+                finishStreamingMessage();
+                reject(error);
+            }
+        });
+    }
+
+    function createStreamingMessageElement() {
+        // Reset streaming state
+        streamingBuffer = [];
+        isShowingLoadingDots = true;
+        
+        // Clear any existing timeout
+        if (bufferTimeout) {
+            clearTimeout(bufferTimeout);
+        }
+        
+        // Create message using original structure
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message bot';
+
+        // Add avatar
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = 'bot-avatar';
+        const avatarImg = document.createElement('img');
+        avatarImg.src = '/static/images/avatar.svg';
+        avatarImg.alt = 'Bot Avatar';
+        avatarDiv.appendChild(avatarImg);
+        messageDiv.appendChild(avatarDiv);
+
+        // Add message content with loading dots
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content streaming-message';
+        contentDiv.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+        messageDiv.appendChild(contentDiv);
+        chatBox.appendChild(messageDiv);
+
+        // Start streaming content after showing loading dots for a while
+        bufferTimeout = setTimeout(() => {
+            startStreamingContent();
+        }, 3000); // Show loading dots for 3 seconds (increased from 1.2s)
+
+        // Scroll to bottom
+        scrollToBottom();
+
+        return contentDiv;
+    }
+
+    function handleStreamingData(data) {
+        if (!currentStreamingMessage) return;
+
+        if (data.type === 'content') {
+            appendToStreamingMessage(data.content);
+        } else if (data.type === 'error') {
+            // Handle error immediately
+            isShowingLoadingDots = false;
+            if (bufferTimeout) {
+                clearTimeout(bufferTimeout);
+                bufferTimeout = null;
+            }
+            currentStreamingMessage.innerHTML = `<span class="error">Error: ${data.content}</span>`;
+            finishStreamingMessage();
+        }
+    }
+
+    function appendToStreamingMessage(content) {
+        if (!currentStreamingMessage) return;
+
+        // If we're still showing loading dots, buffer the content and start streaming immediately
+        if (isShowingLoadingDots) {
+            streamingBuffer.push(content);
+            // Start streaming content immediately when we get the first chunk
+            startStreamingContent();
+            return;
+        }
+
+        // Add new content normally
+        const currentContent = currentStreamingMessage.textContent || '';
+        const newContent = currentContent + content;
+        
+        // Process links like the original function
+        const processedContent = processLinksForBotMessage(newContent);
+        currentStreamingMessage.innerHTML = processedContent;
+        
+        // Scroll to bottom
+        scrollToBottom();
+    }
+
+    function startStreamingContent() {
+        if (!currentStreamingMessage) return;
+        
+        isShowingLoadingDots = false;
+        
+        // Clear any existing timeout
+        if (bufferTimeout) {
+            clearTimeout(bufferTimeout);
+            bufferTimeout = null;
+        }
+        
+        // Clear loading dots
+        currentStreamingMessage.innerHTML = '';
+        
+        // Process buffered content gradually
+        let currentIndex = 0;
+        let accumulatedContent = '';
+        
+        function processNextChunk() {
+            if (currentIndex < streamingBuffer.length && currentStreamingMessage) {
+                const chunk = streamingBuffer[currentIndex];
+                accumulatedContent += chunk;
+                
+                const processedContent = processLinksForBotMessage(accumulatedContent);
+                currentStreamingMessage.innerHTML = processedContent;
+                
+                currentIndex++;
+                scrollToBottom();
+                
+                // Continue with next chunk after a small delay for visual effect
+                setTimeout(processNextChunk, 80);
+            }
+        }
+        
+        // Start processing chunks
+        processNextChunk();
+    }
+
+    function finishStreamingMessage() {
+        if (!currentStreamingMessage) return;
+
+        // Clear any timeouts
+        if (bufferTimeout) {
+            clearTimeout(bufferTimeout);
+            bufferTimeout = null;
+        }
+
+        // Ensure any remaining buffered content is displayed
+        if (isShowingLoadingDots && streamingBuffer.length > 0) {
+            startStreamingContent();
+        }
+
+        // Remove streaming class
+        currentStreamingMessage.classList.remove('streaming-message');
+
+        // Clean up
+        currentStreamingMessage = null;
+        isStreaming = false;
+        streamingBuffer = [];
+        isShowingLoadingDots = true;
+
+        // Scroll to bottom
+        scrollToBottom();
+    }
+
+    // Function to process links like the original
+    function processLinksForBotMessage(text) {
+        const linkRegex = /<link>(.*?)<\/link>/g;
+        const parts = text.split(linkRegex);
+        
+        let result = '';
+        parts.forEach((part, index) => {
+            if (index % 2 === 0) {
+                // Normal text
+                result += part;
+            } else {
+                // It's a link
+                result += `<a href="${part}" target="_blank" rel="noopener noreferrer" class="chat-link">${part}</a>`;
+            }
+        });
+        
+        return result;
+    }
 
     // ===== FUNCIONES DE GRABACIÓN DE AUDIO =====
 
@@ -198,195 +413,100 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             };
 
-            mediaRecorder.onerror = function(event) {
-                console.error('MediaRecorder error:', event.error);
-                addMessage("Error durante la grabación. Intenta de nuevo.", true);
-            };
-
-            mediaRecorder.start(1000); // Collect data every 1000ms
+            mediaRecorder.start();
             isRecording = true;
             updateMicButton();
-            
-            console.log('Recording started successfully');
-            
+            console.log('Recording started');
+
         } catch (error) {
             console.error('Error starting recording:', error);
-            let errorMessage = "Error al acceder al micrófono. ";
-            
-            if (error.name === 'NotAllowedError') {
-                errorMessage += "Permisos denegados. Por favor, permite el acceso al micrófono.";
-            } else if (error.name === 'NotFoundError') {
-                errorMessage += "No se encontró micrófono.";
-            } else if (error.name === 'NotSupportedError') {
-                errorMessage += "Tu navegador no soporta grabación de audio.";
-            } else if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-                errorMessage += "Requiere HTTPS para funcionar.";
-            } else {
-                errorMessage += error.message;
-            }
-            
-            addMessage(errorMessage, true);
-            isRecording = false;
-            updateMicButton();
+            addMessage("Error al iniciar la grabación: " + error.message, true);
         }
     }
 
     function stopRecording() {
-        console.log('Stop recording called, isRecording:', isRecording);
-        if (mediaRecorder && isRecording && mediaRecorder.state === 'recording') {
+        if (mediaRecorder && isRecording) {
             mediaRecorder.stop();
             isRecording = false;
             updateMicButton();
-            console.log('Recording stopped');
+            console.log('Recording stopped by user');
         }
     }
 
     function updateMicButton() {
-        console.log('Updating mic button, isRecording:', isRecording);
         if (isRecording) {
             micButton.classList.add('recording');
             micIcon.style.display = 'none';
             stopIcon.style.display = 'block';
-            micButton.title = 'Detener grabación';
-            console.log('Button set to recording state');
         } else {
             micButton.classList.remove('recording');
             micIcon.style.display = 'block';
             stopIcon.style.display = 'none';
-            micButton.title = 'Iniciar grabación';
-            console.log('Button set to normal state');
         }
     }
 
+    // ===== FUNCIONES DE ENVÍO DE AUDIO =====
+
     async function sendAudioMessage(audioBlob) {
         try {
-            console.log('Sending audio message, blob size:', audioBlob.size);
-            
-            // Disable input and button while processing
+            // Disable input while processing
             messageInput.disabled = true;
-            micButton.disabled = true;
-
-            // Show initial loading indicator for transcription (without bot avatar)
+            
+            // Show transcription loading indicator
             const transcriptionLoadingIndicator = addTranscriptionLoadingIndicator();
-
-            // Create FormData to send audio file
+            
+            // Create FormData to send audio
             const formData = new FormData();
-            formData.append('audio', audioBlob, 'recording.wav');
+            formData.append('audio', audioBlob, 'audio.wav');
             formData.append('sessionID', sessionId);
-
-            console.log('Sending to backend...');
-            // Send audio to backend
-            const response = await fetch('/chat', {
+            
+            console.log('Sending audio to server for transcription...');
+            
+            // Send audio to server for transcription only
+            const response = await fetch('/transcribe', {
                 method: 'POST',
                 body: formData
             });
-
+            
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            
             const result = await response.json();
-            console.log('Audio processing result:', result);
+            console.log('Audio transcription received:', result);
             
             // Remove transcription loading indicator
             transcriptionLoadingIndicator.remove();
-
-            // Process backend response
-            if (result) {
-                // First, show the transcribed text as user message if available
-                if (result.transcribed_text) {
-                    addMessage(result.transcribed_text, false);
-                    
-                    // Add a small delay to show the transcription first
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    
-                    // Show bot loading indicator for processing the response
-                    const responseLoadingIndicator = addLoadingIndicator();
-                    
-                    // Add another small delay to simulate processing
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                    
-                    // Remove response loading indicator
-                    responseLoadingIndicator.remove();
-                }
+            
+            // Show the transcribed text to user
+            if (result.transcribed_text) {
+                addMessage(result.transcribed_text, false);
+                console.log('Transcribed text:', result.transcribed_text);
                 
-                let responseText = '';
-                let options = [];
-                let ticket = null;
-                
-                if (result.type && result.message) {
-                    responseText = result.message;
-                    
-                    if (result.options && result.options.length > 0) {
-                        options = result.options;
-                    }
-                    
-                    if (result.ticket) {
-                        ticket = result.ticket;
-                    }
-                    
-                    addMessage(responseText, true);
-                    
-                    if (options.length > 0) {
-                        addOptions(options);
-                    }
-                    
-                    if (ticket) {
-                        addTicketInfo(ticket);
-                    }
-                    
-                } else {
-                    // Compatibility with previous format
-                    if (result.response && result.response.answer) {
-                        responseText = result.response.answer;
-                    } else if (result.response) {
-                        responseText = result.response;
-                    } else if (result.answer) {
-                        responseText = result.answer;
-                    } else if (typeof result === 'string') {
-                        responseText = result;
-                    } else {
-                        console.log('Unrecognized response structure:', result);
-                        throw new Error('Unrecognized response format');
-                    }
-
-                    if (responseText) {
-                        addMessage(responseText, true);
-                        scrollToBottom();
-                    }
-                }
+                // Now use streaming for the AI response
+                await sendStreamingMessage(sessionId, result.transcribed_text);
+            } else {
+                throw new Error('No transcribed text received');
             }
+            
         } catch (error) {
-            console.error('Error sending audio:', error);
+            console.error('Error sending audio message:', error);
             addMessage("Error al procesar el audio: " + error.message, true);
         } finally {
-            // Re-enable input and microphone
+            // Re-enable input
             messageInput.disabled = false;
-            micButton.disabled = false;
             messageInput.focus();
             scrollToBottom();
         }
     }
 
-    // Improved function to scroll to the last message
+    // ===== FUNCIONES DE UTILIDAD =====
+
     function scrollToBottom() {
-        // Get the last message
-        const messages = chatBox.getElementsByClassName('message');
-        const lastMessage = messages[messages.length - 1];
-        
-        if (lastMessage) {
-            // Use scrollIntoView for a more reliable scroll
-            lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            
-            // Ensure it reaches the bottom after everything has been rendered
-            setTimeout(() => {
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }, 100);
-        }
+        chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // Function to add messages
+    // Function to add a message to the chat (original structure)
     function addMessage(text, isBot) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${isBot ? 'bot' : 'user'}`;
@@ -404,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
         
-        // Process the text to convert <link> tags into hyperlinks
+        // Process the text to convert <link> tags into hyperlinks (original logic)
         const processLinks = (text) => {
             const linkRegex = /<link>(.*?)<\/link>/g;
             const parts = text.split(linkRegex);
@@ -428,7 +548,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
 
-        // Split the text into lines and process each one
+        // Split the text into lines and process each one (original logic)
         const lines = text.split(/\n/);
         
         lines.forEach((line, index) => {
@@ -451,6 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToBottom();
     }
 
+    // Loading indicator with original structure
     function addLoadingIndicator() {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message bot';
@@ -468,18 +589,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content loading';
         
-        // Create the container of the writing indicator
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'typing-indicator';
+        // Create enhanced loading with dots
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'loading-dots';
         
-        // Add only the animated dots
+        const loadingSpan = document.createElement('span');
+        loadingSpan.textContent = 'Thinking';
+        loadingDiv.appendChild(loadingSpan);
+        
+        // Add animated dots
         for (let i = 0; i < 3; i++) {
-            const dot = document.createElement('span');
-            dot.textContent = '.';
-            typingDiv.appendChild(dot);
+            const dot = document.createElement('div');
+            dot.className = 'loading-dot';
+            loadingDiv.appendChild(dot);
         }
         
-        contentDiv.appendChild(typingDiv);
+        contentDiv.appendChild(loadingDiv);
         messageDiv.appendChild(contentDiv);
 
         chatBox.appendChild(messageDiv);
@@ -518,28 +643,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Legacy function for non-streaming messages (kept for audio)
     async function sendMessage(sessionId, message) {
-        const response = await fetch('/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                sessionID: sessionId,
-                query: message || ''
-            })
-        });
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sessionID: sessionId,
+                    query: message
+                })
+            });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error sending message:', error);
+            throw error;
         }
-
-        return await response.json();
     }
 
-    // ===== FUNCIONALIDADES ADICIONALES =====
-
+    // Function to add options as buttons (using original styling)
     function addOptions(options) {
         const optionsContainer = document.createElement('div');
         optionsContainer.className = 'options-container';
@@ -548,13 +678,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const button = document.createElement('button');
             button.className = 'option-button';
             
-            // Manejar tanto objetos como strings simples
+            // Handle both objects and simple strings
             let optionText = '';
             let optionType = '';
             
             if (typeof option === 'string') {
                 optionText = option;
-                // Para botones simples, asignar tipos por defecto
+                // For simple buttons, assign default types
                 if (option.toLowerCase().includes('sí') || option.toLowerCase().includes('si') || option.toLowerCase().includes('yes')) {
                     optionType = 'success';
                 } else if (option.toLowerCase().includes('no')) {
@@ -570,36 +700,32 @@ document.addEventListener('DOMContentLoaded', function() {
             button.textContent = optionText;
             button.setAttribute('data-type', optionType);
             
-            // Manejar el click del botón
+            // Handle button click
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 
-                // Verificar si ya está deshabilitado para evitar doble procesamiento
+                // Check if already disabled to avoid double processing
                 if (button.disabled) {
                     return;
                 }
                 
-                // Deshabilitar todos los botones después del click
+                // Disable all buttons after click
                 optionsContainer.querySelectorAll('.option-button').forEach(btn => {
                     btn.disabled = true;
                     btn.style.opacity = '0.6';
                 });
                 
-                // Deshabilitar el input principal también
+                // Disable main input as well
                 messageInput.disabled = true;
                 
-                // Procesar la selección
-                handleOptionClick({
-                    text: optionText,
-                    type: optionType,
-                    response: typeof option === 'object' ? option.response : null
-                });
+                // Process the selection
+                handleOptionClick(optionText);
             });
 
             optionsContainer.appendChild(button);
         });
 
-        // Agregar el contenedor de opciones al último mensaje del bot
+        // Add the options container to the last bot message
         const lastBotMessage = Array.from(chatBox.querySelectorAll('.message.bot')).pop();
         if (lastBotMessage) {
             const messageContent = lastBotMessage.querySelector('.message-content');
@@ -609,101 +735,35 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToBottom();
     }
 
-    function handleOptionClick(option) {
-        console.log('Option clicked:', option);
+    // Function to handle option clicks (now with streaming)
+    function handleOptionClick(optionText) {
+        console.log('Option clicked:', optionText);
         
-        // Enviar la respuesta como si fuera un mensaje del usuario
-        addMessage(option.text, false);
+        // Send the response as if it were a user message
+        addMessage(optionText, false);
         
-        // Agregar respuesta automática del bot si la hay
-        if (option.response) {
-            setTimeout(() => {
-                addMessage(option.response, true);
-            }, 500);
-        } else {
-            // Si no hay respuesta automática, enviar al backend
-            setTimeout(async () => {
-                let loadingIndicator = null;
-                try {
-                    console.log('Sending option to backend:', option.text, 'with sessionId:', sessionId);
-                    loadingIndicator = addLoadingIndicator();
-                    const response = await sendMessage(sessionId, option.text);
-                    if (loadingIndicator) {
-                        loadingIndicator.remove();
-                        loadingIndicator = null;
-                    }
-                    
-                    if (response) {
-                        console.log('Option click response:', response); // Para debugging
-                        let responseText = '';
-                        let options = [];
-                        let ticket = null;
-                        
-                        // Usar la misma lógica que en el submit principal
-                        if (response.type && response.message) {
-                            responseText = response.message;
-                            
-                            if (response.options && response.options.length > 0) {
-                                options = response.options;
-                            }
-                            
-                            if (response.ticket) {
-                                ticket = response.ticket;
-                            }
-                            
-                            addMessage(responseText, true);
-                            
-                            if (options.length > 0) {
-                                addOptions(options);
-                            }
-                            
-                            if (ticket) {
-                                addTicketInfo(ticket);
-                            }
-                            
-                        } else {
-                            // Compatibilidad con formato anterior
-                            if (response.response && response.response.answer) {
-                                responseText = response.response.answer;
-                            } else if (response.response) {
-                                responseText = response.response;
-                            } else if (response.answer) {
-                                responseText = response.answer;
-                            } else if (typeof response === 'string') {
-                                responseText = response;
-                            } else {
-                                console.log('Unrecognized response structure in option click:', response);
-                                responseText = "Respuesta procesada correctamente.";
-                            }
-                            
-                            if (responseText) {
-                                addMessage(responseText, true);
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error sending option response:', error);
-                    console.error('Error details:', error.message, error.stack);
-                    if (loadingIndicator) {
-                        loadingIndicator.remove();
-                        loadingIndicator = null;
-                    }
-                    addMessage("Error al procesar la respuesta. Intenta de nuevo.", true);
-                } finally {
-                    // Re-enable input
-                    messageInput.disabled = false;
-                    messageInput.focus();
-                    scrollToBottom();
-                }
-            }, 500);
-        }
+        // Process with streaming
+        setTimeout(async () => {
+            try {
+                await sendStreamingMessage(sessionId, optionText);
+            } catch (error) {
+                console.error('Error sending option response:', error);
+                addMessage("Error al procesar la respuesta. Intenta de nuevo.", true);
+            } finally {
+                // Re-enable input
+                messageInput.disabled = false;
+                messageInput.focus();
+                scrollToBottom();
+            }
+        }, 500);
     }
 
+    // Function to add ticket information (using original structure)
     function addTicketInfo(ticket) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message bot';
 
-        // Agregar avatar del bot
+        // Add bot avatar
         const avatarDiv = document.createElement('div');
         avatarDiv.className = 'bot-avatar';
         const avatarImg = document.createElement('img');
@@ -712,15 +772,15 @@ document.addEventListener('DOMContentLoaded', function() {
         avatarDiv.appendChild(avatarImg);
         messageDiv.appendChild(avatarDiv);
 
-        // Contenedor del contenido
+        // Content container
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
 
-        // Crear tabla de información del ticket
+        // Create ticket info table
         const ticketTable = document.createElement('table');
         ticketTable.className = 'ticket-info';
 
-        // Agregar filas de información del ticket
+        // Add ticket information rows
         Object.entries(ticket).forEach(([key, value]) => {
             const row = document.createElement('tr');
             
@@ -728,7 +788,16 @@ document.addEventListener('DOMContentLoaded', function() {
             keyCell.textContent = key + ':';
             
             const valueCell = document.createElement('td');
-            valueCell.textContent = value;
+            if (key === 'trello_url' && value) {
+                const link = document.createElement('a');
+                link.href = value;
+                link.textContent = 'Ver en Trello';
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                valueCell.appendChild(link);
+            } else {
+                valueCell.textContent = value;
+            }
             
             row.appendChild(keyCell);
             row.appendChild(valueCell);
