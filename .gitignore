@@ -10,4 +10,4 @@ venv/
 .idea/
 
 # Otros
-.DS_Store
+.DS_Store.venv/

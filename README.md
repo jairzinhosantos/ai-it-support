@@ -1,21 +1,20 @@
-# IT Support AI Assistant
+# Generic IT Support AI Assistant
+
+**An intelligent IT support system that provides automated first-line technical assistance using conversational AI powered by Azure OpenAI.**
 
 ## Table of Contents
-[Project Description](#mag-project-description)<br>
-[Architecture](#building_construction-architecture)<br>
-[Components](#open_file_folder-components)<br>
-[Technologies Used](#hammer_and_wrench-technologies-used)<br>
-[Installation & Setup](#rocket-installation--setup)<br>
-[Configuration](#gear-configuration)<br>
-[Usage](#computer-usage)<br>
-[Contributing](#handshake-contributing)<br>
-[License](#page_facing_up-license)<br>
 
-# Generic IT Support AI Assistant 🤖💻
+- [Project Description](#project-description)
+- [Architecture](#architecture)
+- [Components](#components)
+- [Technologies Used](#technologies-used)
+- [Installation & Setup](#installation--setup)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
 
-**`An intelligent IT support system that provides automated first-line technical assistance using conversational AI powered by Azure OpenAI.`**
-
-## :mag: Project Description
+## Project Description
 
 This IT Support AI Assistant is a flexible, configurable virtual assistant designed to provide first-line technical support for organizations. The system leverages Azure OpenAI's GPT-4o model for natural language processing and integrates with multiple services to deliver a comprehensive and efficient support experience.
 
@@ -28,11 +27,11 @@ This IT Support AI Assistant is a flexible, configurable virtual assistant desig
 - **Conversation History**: Stores and tracks all interactions
 - **Flexible Configuration**: Easy to customize for different organizations and use cases
 
-## :building_construction: Architecture
+## Architecture
 
 The system follows a modular microservices-based architecture that enables scalability and maintainability. For detailed architecture information, see the [architecture document](architecture.md).
 
-## :open_file_folder: Components
+## Components
 
 ### Project Structure
 
@@ -66,52 +65,23 @@ ai-it-support/
 
 #### Core Components
 
-- **`app.py`**: Main Flask application entry point. Handles HTTP routes (`/`, `/chat`), user sessions, and audio/text processing.
-  - `handle_text_request()`: Processes text-based chat requests
-  - `handle_audio_request()`: Processes audio-based chat requests with Whisper transcription
-  - `start_app()`: Launches the Flask application
-
-- **`orchestrator.py`**: Core orchestration logic that coordinates all services and manages conversation flow.
-  - `run()`: Main processing method that handles the complete request lifecycle
-  - `parse_structured_response()`: Parses structured responses from the AI model
-  - `format_response_for_frontend()`: Formats responses for the web interface
+- **app.py**: Main Flask application entry point. Handles HTTP routes, user sessions, and audio/text processing.
+- **orchestrator.py**: Core orchestration logic that coordinates all services and manages conversation flow.
 
 #### Service Layer
 
-- **`services/azopenai.py`**: Azure OpenAI client (`AzureOpenAIClient`)
-  - `run()`: Executes chat completion with function calling
-  - `openai_response()`: Handles different response formats (normal, tools, function_calling)
-  - `parse_content()`: Parses and cleans AI responses
-
-- **`services/cosmosdb.py`**: Azure Cosmos DB client (`AzureCosmosDBClient`)
-  - `get_chat_history_async()`: Retrieves conversation history asynchronously
-  - `insert_items_async()`: Inserts chat history items
-  - `insert_evals_async()`: Inserts evaluation metrics
-
-- **`services/ticket_trello.py`**: Trello API client (`TrelloTicketClient`)
-  - `create_ticket()`: Creates new tickets with priority-based list assignment
-  - `update_ticket()`: Updates existing tickets
-  - `_get_list_id_by_priority()`: Maps ticket priority to Trello lists
-
-- **`services/aisearch.py`**: Azure AI Search client (`AzureAISearchClient`)
-  - `run()`: Executes semantic search queries
-  - `search()`: Performs hybrid/semantic search with vector queries
-
-- **`services/whisper.py`**: Audio transcription client (`WhisperClient`)
-  - `run()`: Transcribes audio to text using Azure OpenAI Whisper
+- **services/azopenai.py**: Azure OpenAI client with support for function calling and multiple response formats
+- **services/cosmosdb.py**: Azure Cosmos DB client for asynchronous chat history and metrics storage
+- **services/ticket_trello.py**: Trello API client with flexible priority-based ticket management
+- **services/aisearch.py**: Azure AI Search client for semantic and hybrid search capabilities
+- **services/whisper.py**: Audio transcription client using Azure OpenAI Whisper
 
 #### Configuration System
 
-- **`config/config.py`**: Configuration loader class (`Config`)
-  - `load_config()`: Loads configuration from JSON file
-  - Handles configuration errors gracefully
+- **config/config.py**: Configuration loader with error handling
+- **config/config.json**: Centralized configuration file with modular service settings
 
-- **`config/config.json`**: Centralized configuration file containing:
-  - Flask settings (host, port)
-  - Model parameters (deployments, pricing, parameters)
-  - Service configurations (AI Search, Trello mappings)
-
-## :hammer_and_wrench: Technologies Used
+## Technologies Used
 
 ### Cloud Services
 - **Azure OpenAI**: GPT-4o and GPT-4o-mini models for natural language processing
@@ -128,7 +98,7 @@ ai-it-support/
 - **Asyncio**: Asynchronous operations for better performance
 - **HTML/CSS/JavaScript**: Responsive web frontend
 
-## :rocket: Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 - Python 3.8 or higher
@@ -196,27 +166,15 @@ ai-it-support/
 
 The application will be available at `http://localhost:8080`
 
-## :gear: Configuration
+## Configuration
 
-### Main Configuration (`config/config.json`)
+### Main Configuration
 
-The configuration file provides flexible system settings:
+The `config/config.json` file provides flexible system settings:
 
-#### Model Configuration
-- **Deployments**: Azure OpenAI model deployments and pricing
-- **Parameters**: Model parameters (temperature, max_tokens, etc.)
-- **Response Format**: Support for function calling, tools, or normal responses
-
-#### Service Configuration
-- **AI Search**: Search type (hybrid, semantic, hybrid_semantic)
-- **Trello**: Priority and issue type label mappings
-- **Flask**: Server settings
-
-#### Flexibility Features
-The configuration system is designed for easy customization:
-- **Environment-based overrides**: Environment variables take precedence
-- **Fallback mechanisms**: Multiple configuration options for compatibility
-- **Modular settings**: Each service can be configured independently
+- **Model Configuration**: Azure OpenAI model deployments, pricing, and parameters
+- **Service Configuration**: AI Search types, Trello mappings, and Flask settings
+- **Flexibility Features**: Environment-based overrides, fallback mechanisms, and modular settings
 
 ### Trello Configuration
 
@@ -245,7 +203,7 @@ TRELLO_LIST_CLOSED_ID=closed_list_id
    curl "https://api.trello.com/1/boards/BOARD_ID/lists?key=API_KEY&token=TOKEN"
    ```
 
-## :computer: Usage
+## Usage
 
 ### Web Interface
 1. Navigate to `http://localhost:8080`
@@ -263,7 +221,7 @@ TRELLO_LIST_CLOSED_ID=closed_list_id
 - **Options**: Multiple choice responses
 - **Ticket**: Ticket creation confirmation with details
 
-## :handshake: Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -271,7 +229,7 @@ TRELLO_LIST_CLOSED_ID=closed_list_id
 4. Add tests if applicable
 5. Submit a pull request
 
-## :page_facing_up: License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
