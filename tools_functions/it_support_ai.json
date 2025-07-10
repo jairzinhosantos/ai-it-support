@@ -1,0 +1,74 @@
+[
+  {
+    "name": "it_support_response",
+    "description": "Estructura de respuesta para el asistente de soporte IT que incluye flags de control, respuesta al usuario y información de tickets",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "flag_kb": {
+          "type": "boolean",
+          "description": "Indica si la respuesta requiere consultar la base de conocimientos"
+        },
+        "flag_options": {
+          "type": "boolean", 
+          "description": "Indica si se deben mostrar opciones al usuario"
+        },
+        "flag_ticket": {
+          "type": "boolean",
+          "description": "Indica si se debe crear o actualizar un ticket"
+        },
+        "answer": {
+          "type": "string",
+          "description": "Mensaje de respuesta del asistente al usuario"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Lista de opciones disponibles para el usuario (solo si flag_options es true)"
+        },
+        "ticket_summary": {
+          "type": "object",
+          "properties": {
+            "ticket_id": {
+              "type": "string",
+              "description": "Identificador único del ticket (ej: HD123456)"
+            },
+            "issue_type": {
+              "type": "string",
+              "description": "Tipo de problema (ej: PASSWORD_RESET, HARDWARE_ISSUE, SOFTWARE_ISSUE)"
+            },
+            "priority": {
+              "type": "string",
+              "enum": ["Low", "Medium", "High", "Critical"],
+              "description": "Prioridad del ticket"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["Open", "In Progress", "Pending", "Resolved", "Closed"],
+              "description": "Estado actual del ticket"
+            },
+            "user_name": {
+              "type": "string",
+              "description": "Nombre completo del usuario que reporta"
+            },
+            "asset_tag": {
+              "type": "string",
+              "description": "Número de activo del equipo (si aplica)"
+            }
+          },
+          "required": ["ticket_id", "issue_type", "priority", "status", "user_name"],
+          "description": "Resumen del ticket (solo si flag_ticket es true)"
+        }
+      },
+      "required": [
+        "flag_kb",
+        "flag_options", 
+        "flag_ticket",
+        "answer",
+        "options"
+      ]
+    }
+  }
+]

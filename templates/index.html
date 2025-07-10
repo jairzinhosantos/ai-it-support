@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centrum PUCP</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icon.svg') }}">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="app">
+        <header class="header shadow-sm">
+            <div class="container-fluid px-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <img src="{{ url_for('static', filename='images/header.svg') }}" alt="Asistente IA TI – Centrum PUCP" class="header-logo">
+                    <h1 class="header-title">Asistente IA TI – Centrum PUCP</h1>
+                    <button id="deleteHistory" class="delete-history-button">Clear history</button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="chat-container">
+            <div class="container-fluid px-4">
+                <div id="chatBox" class="chat-box">
+                    <!-- The messages will be added here dynamically -->
+                </div>
+                
+                <form id="messageForm" class="message-form">
+                    <div class="input-container">
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                id="messageInput" 
+                                class="form-control border-0" 
+                                placeholder="Write your message or press the microphone to record" 
+                                autocomplete="off"
+                            >
+                            <button type="button" id="micButton" class="btn mic-button">
+                                <svg id="micIcon" viewBox="0 0 24 24" fill="currentColor" height="24" width="24">
+                                    <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                                </svg>
+                                <svg id="stopIcon" viewBox="0 0 24 24" fill="currentColor" height="24" width="24" style="display: none;">
+                                    <path d="M6 6h12v12H6z"/>
+                                </svg>
+                            </button>
+                            <button type="submit" class="btn send-button">
+                                <svg viewBox="0 0 24 24" fill="currentColor" height="24" width="24">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html> 

@@ -1,0 +1,80 @@
+{
+  "flask": {
+    "host": "0.0.0.0",
+    "port": 8080
+  },
+  "model": {
+    "parameters": {
+      "max_tokens": 4000,
+      "temperature": 0.7,
+      "top_p": 0.95,
+      "seed": 12342,
+      "response_format": "function_calling", 
+      "tools": {
+        "path": "tools_functions",
+        "file": "it_support_ai.json",
+        "tool_choice": "auto"
+      },
+      "functions": {
+        "path": "tools_functions",
+        "file": "it_support_ai.json",
+        "function_call": {
+          "name": "it_support_response"
+        }
+      }
+    },
+    "deployments": {
+      "gpt-4o": {
+        "name": "gpt-4o",
+        "price": {
+          "input_tokens": 0.0000025,
+          "output_tokens": 0.00001
+        }
+      },
+      "gpt-4o-mini": {
+        "name": "gpt-4o-mini",
+        "price": {
+          "input_tokens": 0.00000015,
+          "output_tokens": 0.0000006
+        }
+      },
+      "whisper": {
+        "name": "whisper",
+        "price": {
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    },
+    "prompt": {
+      "path": "prompts",
+      "system_prompt": "it-support-agent.prompt"
+    },
+    "data": {
+      "path": "",
+      "file": ""
+    }
+  },
+  "ai_search": {
+    "search_type": "hybrid_semantic",
+    "k_nearest_neighbors": 5,
+    "fields": "text_vector",
+    "top": 5
+  },
+  "trello": {
+    "default_board_id": null,
+    "default_list_id": null,
+    "priority_labels": {
+      "alta": "LABEL_ID_HIGH_PRIORITY",
+      "media": "LABEL_ID_MEDIUM_PRIORITY", 
+      "baja": "LABEL_ID_LOW_PRIORITY"
+    },
+    "issue_type_labels": {
+      "hardware": "LABEL_ID_HARDWARE",
+      "software": "LABEL_ID_SOFTWARE",
+      "red": "LABEL_ID_NETWORK",
+      "cuenta": "LABEL_ID_ACCOUNT",
+      "otro": "LABEL_ID_OTHER"
+    }
+  }
+}
