@@ -11,7 +11,7 @@ from azure.search.documents.models import (
     QueryCaptionType,
     QueryAnswerType,
 )
-from config.parameters import Parameters
+from config.config import Config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -23,14 +23,14 @@ class AzureAISearchClient:
     def __init__(self):
         try:
             # Set parameters
-            parameters = Parameters().parameters
-            self.search_type = parameters.get("search_type", "vector")
-            self.k_nearest_neighbors = parameters.get("k_nearest_neighbors", 3)
-            self.fields = parameters.get("fields", "text_vector")
-            self.top = parameters.get("top", 1)
-            logger.info("Parameters loaded successfully.")
+            config = Config().config
+            self.search_type = config["ai_search"]["search_type"]
+            self.k_nearest_neighbors = config["ai_search"]["k_nearest_neighbors"]
+            self.fields = config["ai_search"]["fields"]
+            self.top = config["ai_search"]["top"]
+            logger.info("Configuration loaded successfully.")
         except Exception as e:
-            logger.error(f"Error loading parameters: {e}")
+            logger.error(f"Error loading configuration: {e}")
             raise
     
     @staticmethod
@@ -100,34 +100,6 @@ class AzureAISearchClient:
 
             response = client.search(**search_kwargs)
             return response
-
-            # if search_type == 'vector':
-            #     response = client.search(  
-            #         search_text=None,  
-            #         vector_queries= [vector_query],
-            #         top=top
-            #     )  
-            #     return response
-            
-            # elif search_type == 'hybrid':
-            #     response = client.search(  
-            #         search_text=query,
-            #         vector_queries=[vector_query],
-            #         top=top
-            #     )
-            #     return response
-            
-            # elif search_type == 'hybrid_semantic':
-            #     response = client.search(  
-            #         search_text=query,
-            #         vector_queries=[vector_query],
-            #         query_type=QueryType.SEMANTIC,
-            #         semantic_configuration_name=semantic_configuration_name,
-            #         query_caption=QueryCaptionType.EXTRACTIVE,
-            #         query_answer=QueryAnswerType.EXTRACTIVE,
-            #         top=top
-            #     )
-            #     return response
             
         except Exception as e:
             logger.error(f"Error getting Search from Azure AISearch: {e}")

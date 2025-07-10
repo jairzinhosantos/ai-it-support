@@ -1,0 +1,545 @@
+:root {
+    --primary-color: #212954;
+    --secondary-color: #212954;
+    --background-color: #f5f5f0;
+    --message-radius: 1.5rem;
+    --input-radius: 2rem;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--background-color);
+}
+
+.app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.header {
+    background: white;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.header-logo {
+    height: 4rem;
+    width: auto;
+}
+
+.header-title {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1a3b7d;
+}
+
+.header-title .ia {
+    color: #e2b93b;
+    font-style: normal;
+}
+
+.delete-history-button {
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    transition: background-color 0.2s ease;
+}
+
+.delete-history-button:hover {
+    background-color: #212954;
+}
+
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding-bottom: 1rem;
+    margin-top: 6rem;
+    height: calc(100vh - 6rem);
+}
+
+.chat-box {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 15% 100px;
+    scroll-behavior: smooth;
+    height: calc(100vh - 6rem - 80px);
+}
+
+.message {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.message.user {
+    justify-content: flex-end;
+}
+
+.bot-avatar {
+    width: 2rem;
+    height: 2rem;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+}
+
+.bot-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.message-content {
+    background: white;
+    padding: 0.75rem 1rem;
+    border-radius: var(--message-radius);
+    max-width: 60%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.message-content br {
+    display: block;
+    content: "";
+    margin-top: 0.5em;
+}
+
+.message-content span {
+    display: inline-block;
+}
+
+.message.user .message-content {
+    background: var(--primary-color);
+    color: white;
+}
+
+.message-form {
+    position: fixed;
+    bottom: 1rem;
+    left: 0;
+    right: 0;
+    padding: 0 15%;
+    background-color: transparent;
+    z-index: 1000;
+}
+
+.input-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: var(--input-radius);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.input-group {
+    border: none;
+    background: transparent;
+}
+
+.form-control {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border: none;
+    background: transparent;
+}
+
+.form-control:focus {
+    box-shadow: none;
+}
+
+.send-button {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-radius: 50% !important;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0 !important;
+    margin: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.send-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.mic-button {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-radius: 50% !important;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0 !important;
+    margin: 0.25rem;
+    margin-right: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.mic-button:hover {
+    background-color: #1a2040 !important;
+}
+
+.mic-button.recording {
+    background-color: #dc3545 !important;
+    animation: pulse 1.5s infinite;
+}
+
+.mic-button.recording:hover {
+    background-color: #c82333 !important;
+}
+
+.mic-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.loading-indicator {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive Styles */
+@media (max-width: 1200px) {
+    .chat-box {
+        padding: 1.5rem 10% 100px;
+    }
+    .message-form {
+        padding: 0 10%;
+    }
+    .message-content {
+        max-width: 70%;
+    }
+}
+
+@media (max-width: 992px) {
+    .chat-box {
+        padding: 1.5rem 5% 100px;
+    }
+    .message-form {
+        padding: 0 5%;
+    }
+    .message-content {
+        max-width: 75%;
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: 1rem 0;
+    }
+    
+    .header-logo {
+        height: 3.5rem;
+    }
+    
+    .chat-container {
+        margin-top: 5rem;
+        height: calc(100vh - 5rem);
+    }
+    
+    .chat-box {
+        height: calc(100vh - 5rem - 70px);
+        padding: 1.5rem 1rem 90px;
+    }
+    
+    .delete-history-button {
+        font-size: 0.8125rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    .header-title {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .header {
+        padding: 0.75rem 0;
+    }
+    
+    .header-logo {
+        height: 3rem;
+    }
+    
+    .chat-container {
+        margin-top: 4.5rem;
+        height: calc(100vh - 4.5rem);
+    }
+    
+    .chat-box {
+        height: calc(100vh - 4.5rem - 60px);
+        padding: 1rem 0.5rem 80px;
+    }
+    
+    .message-form {
+        padding: 0 0.5rem;
+        bottom: 0.5rem;
+    }
+    
+    .message-content {
+        max-width: 85%;
+        font-size: 0.8125rem;
+        padding: 0.625rem 0.875rem;
+    }
+    
+    .bot-avatar {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+    
+    .input-container {
+        margin: 0 0.5rem;
+    }
+    
+    .form-control {
+        padding: 0.625rem 0.875rem;
+    }
+    
+    .send-button {
+        width: 2.25rem;
+        height: 2.25rem;
+        margin: 0.125rem;
+    }
+    
+    .mic-button {
+        width: 2.25rem;
+        height: 2.25rem;
+        margin: 0.125rem;
+        margin-right: 0.375rem;
+    }
+    
+    .header-title {
+        font-size: 1.25rem;
+    }
+}
+
+/* Asegurar que el contenido sea visible en dispositivos muy pequeños */
+@media (max-width: 360px) {
+    .message-content {
+        max-width: 90%;
+        font-size: 0.75rem;
+    }
+    
+    .chat-box {
+        padding: 0.75rem 0.25rem 70px;
+    }
+    
+    .message-form {
+        padding: 0.25rem;
+    }
+}
+
+.chat-link {
+    color: #0066cc;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.chat-link:hover {
+    text-decoration: underline;
+    color: #0052a3;
+}
+
+.message.user .chat-link {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.message-content.loading {
+    background: #f0f0f0;
+    color: #666;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+}
+
+.typing-indicator span {
+    animation: typingDot 1.4s infinite;
+    opacity: 0.7;
+    margin: 0 2px;
+    font-size: 20px;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+    0% { opacity: 0.7; transform: translateY(0px); }
+    25% { opacity: 1; transform: translateY(-3px); }
+    50% { opacity: 0.7; transform: translateY(0px); }
+    75% { opacity: 0.4; transform: translateY(3px); }
+    100% { opacity: 0.7; transform: translateY(0px); }
+}
+
+/* ===== FUNCIONALIDADES ADICIONALES ===== */
+
+/* Contenedor de opciones */
+.options-container {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Estilo base para los botones de opciones */
+.option-button {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: #f8f9fa;
+    color: #333;
+    min-width: 60px;
+}
+
+/* Botón de completado/éxito */
+.option-button[data-type="success"] {
+    border-color: #34c759;
+    color: #34c759;
+    background-color: rgba(52, 199, 89, 0.1);
+}
+
+.option-button[data-type="success"]:hover {
+    background-color: #34c759;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Botón de error/no funciona */
+.option-button[data-type="error"] {
+    border-color: #ff3b30;
+    color: #ff3b30;
+    background-color: rgba(255, 59, 48, 0.1);
+}
+
+.option-button[data-type="error"]:hover {
+    background-color: #ff3b30;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Efectos de hover generales */
+.option-button:hover {
+    transform: translateY(-1px);
+}
+
+/* Efecto al hacer clic */
+.option-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Estado deshabilitado */
+.option-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Tabla de detalles del ticket */
+.ticket-info {
+    width: 100%;
+    margin-top: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    border: 1px solid #e6e8eb;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+
+.ticket-info tr {
+    border-bottom: 1px solid #e6e8eb;
+}
+
+.ticket-info tr:last-child {
+    border-bottom: none;
+}
+
+.ticket-info tr:first-child td:first-child {
+    border-top-left-radius: 0.5rem;
+}
+
+.ticket-info tr:first-child td:last-child {
+    border-top-right-radius: 0.5rem;
+}
+
+.ticket-info tr:last-child td:first-child {
+    border-bottom-left-radius: 0.5rem;
+}
+
+.ticket-info tr:last-child td:last-child {
+    border-bottom-right-radius: 0.5rem;
+}
+
+.ticket-info td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    vertical-align: top;
+}
+
+.ticket-info td:first-child {
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+    width: 30%;
+    text-transform: capitalize;
+}
+
+.ticket-info td:last-child {
+    color: #212529;
+    background-color: white;
+    font-weight: 500;
+}
+
